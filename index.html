@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Yatırım ve Sermaye Simülatörü v2.0</title>
+    <title>Yatırım ve Sermaye Simülatörü Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -35,7 +35,7 @@
                         <input type="number" id="s1_rate" value="40" class="w-full bg-gray-700 p-3 rounded-lg outline-none">
                     </div>
                     <div>
-                        <label class="text-xs text-gray-400 uppercase font-bold">Süre (Yıl) - İşte Senin X Değerin</label>
+                        <label class="text-xs text-gray-400 uppercase font-bold">Süre (Yıl)</label>
                         <input type="number" id="s1_years" value="1" class="w-full bg-gray-700 p-3 rounded-lg outline-none">
                     </div>
                     <div class="p-4 bg-blue-900/20 rounded-xl">
@@ -49,13 +49,38 @@
             </div>
         </section>
 
-        <!-- SİSTEM 2: SERMAYE KATLAMA (ALTTA DURMAYA DEVAM EDİYOR) -->
-        <!-- ... (Buradaki kod aynı kalabilir veya istersen silebilirsin) ... -->
+        <!-- SİSTEM 2: SERMAYE KATLAMA (TRADE) -->
+        <section class="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-2xl">
+            <h2 class="text-2xl font-bold mb-6 text-green-400 border-b border-gray-700 pb-2">Sistem 2: Sermaye Büyütme (Trade/Hedef)</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">Başlangıç Sermayesi (TL)</label>
+                        <input type="number" id="s2_capital" value="10000" class="w-full bg-gray-700 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">İşlem Başı Kar Hedefi (%)</label>
+                        <input type="number" id="s2_percent" value="5" class="w-full bg-gray-700 p-3 rounded-lg outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">İşlem Sayısı (Tekrar)</label>
+                        <input type="number" id="s2_count" value="20" class="w-full bg-gray-700 p-3 rounded-lg outline-none">
+                    </div>
+                    <div class="p-4 bg-green-900/20 rounded-xl">
+                        <p class="text-sm text-green-300">Final Sermaye:</p>
+                        <p id="s2_total" class="text-2xl font-black text-green-400">0 TL</p>
+                    </div>
+                </div>
+                <div class="lg:col-span-3 h-[400px]">
+                    <canvas id="chart2"></canvas>
+                </div>
+            </div>
+        </section>
 
     </div>
 
     <script>
-        let chart1;
+        let chart1, chart2;
 
         function updateS1() {
             const initial = parseFloat(document.getElementById('s1_initial').value) || 0;
@@ -65,31 +90,40 @@
             const years = parseFloat(document.getElementById('s1_years').value) || 1;
             
             const periodRate = Math.pow(1 + rate, 1/freq) - 1;
-            
-            let current = initial;
-            let labels = [];
-            let data = [];
+            let current = initial, labels = [], data = [];
             let totalPeriods = Math.floor(freq * years);
 
             for (let i = 0; i <= totalPeriods; i++) {
-                if (i > 0) {
-                    current = (current + deposit) * (1 + periodRate);
-                }
+                if (i > 0) current = (current + deposit) * (1 + periodRate);
                 
-                // Grafik çok kalabalık olmasın diye sadece belirli noktaları çiziyoruz
-                let shouldShow = false;
-                if (freq === 365 && i % 10 === 0) shouldShow = true; // Günlükse 10 günde 1
-                if (freq === 52 && i % 2 === 0) shouldShow = true;   // Haftalıksa 2 haftada 1
-                if (freq === 12) shouldShow = true;                 // Aylıksa her ay
-                if (i === totalPeriods) shouldShow = true;          // Son gün her zaman
+                let show = false;
+                if (freq === 365 && i % 10 === 0) show = true;
+                if (freq === 52 && i % 2 === 0) show = true;
+                if (freq === 12 || i === totalPeriods) show = true;
 
-                if (shouldShow) {
+                if (show) {
                     labels.push(i + ". Periyot");
                     data.push(current.toFixed(0));
                 }
             }
             document.getElementById('s1_total').innerText = new Intl.NumberFormat('tr-TR').format(current.toFixed(0)) + " TL";
             renderChart('chart1', labels, data, '#3b82f6', chart1, (c) => chart1 = c);
+        }
+
+        function updateS2() {
+            const capital = parseFloat(document.getElementById('s2_capital').value) || 0;
+            const percent = (parseFloat(document.getElementById('s2_percent').value) || 0) / 100;
+            const count = parseInt(document.getElementById('s2_count').value) || 0;
+            
+            let current = capital, labels = ["Başlangıç"], data = [capital];
+
+            for (let i = 1; i <= count; i++) {
+                current = current * (1 + percent);
+                labels.push(i + ". İşlem");
+                data.push(current.toFixed(0));
+            }
+            document.getElementById('s2_total').innerText = new Intl.NumberFormat('tr-TR').format(current.toFixed(0)) + " TL";
+            renderChart('chart2', labels, data, '#22c55e', chart2, (c) => chart2 = c);
         }
 
         function renderChart(canvasId, labels, data, color, chartInstance, setChartInstance) {
@@ -106,14 +140,14 @@
                         backgroundColor: color + '33',
                         fill: true,
                         tension: 0.3,
-                        pointRadius: 2
+                        pointRadius: data.length > 50 ? 0 : 2
                     }]
                 },
                 options: {
                     maintainAspectRatio: false,
                     scales: {
                         y: { grid: { color: '#374151' } },
-                        x: { ticks: { color: '#9ca3af' } }
+                        x: { ticks: { color: '#9ca3af', display: data.length < 50 } }
                     },
                     plugins: { legend: { display: false } }
                 }
@@ -121,8 +155,8 @@
             setChartInstance(newChart);
         }
 
-        document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', updateS1));
-        updateS1();
+        document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', () => { updateS1(); updateS2(); }));
+        updateS1(); updateS2();
     </script>
 </body>
 </html>
