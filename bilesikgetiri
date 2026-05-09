@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yatırım ve Sermaye Simülatörü</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-4 md:p-8">
+    <div class="max-w-6xl mx-auto space-y-12">
+        
+        <!-- SİSTEM 1: DÜZENLİ BİRİKİM -->
+        <section class="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-2xl">
+            <h2 class="text-2xl font-bold mb-6 text-blue-400 border-b border-gray-700 pb-2">Sistem 1: Düzenli Birikim (Kar Topu)</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">Her Seferde Yatan (TL)</label>
+                        <input type="number" id="s1_deposit" value="100" class="w-full bg-gray-700 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">Sıklık</label>
+                        <select id="s1_freq" class="w-full bg-gray-700 p-3 rounded-lg outline-none">
+                            <option value="365">Günlük</option>
+                            <option value="52">Haftalık</option>
+                            <option value="12" selected>Aylık</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">Yıllık Beklenen Getiri (%)</label>
+                        <input type="number" id="s1_rate" value="40" class="w-full bg-gray-700 p-3 rounded-lg outline-none">
+                    </div>
+                    <div class="p-4 bg-blue-900/20 rounded-xl">
+                        <p class="text-sm text-blue-300">Toplam Birikim:</p>
+                        <p id="s1_total" class="text-2xl font-black text-blue-400">0 TL</p>
+                    </div>
+                </div>
+                <div class="lg:col-span-3 h-64">
+                    <canvas id="chart1"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- SİSTEM 2: SERMAYE KATLAMA (TRADE) -->
+        <section class="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-2xl">
+            <h2 class="text-2xl font-bold mb-6 text-green-400 border-b border-gray-700 pb-2">Sistem 2: Sermaye Büyütme (Trade/Hedef)</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">Başlangıç Sermayesi (TL)</label>
+                        <input type="number" id="s2_capital" value="10000" class="w-full bg-gray-700 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">İşlem Başı Kar Hedefi (%)</label>
+                        <input type="number" id="s2_percent" value="5" class="w-full bg-gray-700 p-3 rounded-lg outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 uppercase font-bold">İşlem Sayısı (Tekrar)</label>
+                        <input type="number" id="s2_count" value="20" class="w-full bg-gray-700 p-3 rounded-lg outline-none">
+                    </div>
+                    <div class="p-4 bg-green-900/20 rounded-xl">
+                        <p class="text-sm text-green-300">Final Sermaye:</p>
+                        <p id="s2_total" class="text-2xl font-black text-green-400">0 TL</p>
+                    </div>
+                </div>
+                <div class="lg:col-span-3 h-64">
+                    <canvas id="chart2"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        let chart1, chart2;
+
+        function updateS1() {
+            const deposit = parseFloat(document.getElementById('s1_deposit').value) || 0;
+            const freq = parseInt(document.getElementById('s1_freq').value);
+            const rate = (parseFloat(document.getElementById('s1_rate').value) || 0) / 100;
+            const periodRate = Math.pow(1 + rate, 1/freq) - 1;
+            
+            let current = 0, labels = [], data = [];
+            let totalPeriods = freq; // 1 yıllık gösterim
+
+            for (let i = 1; i <= totalPeriods; i++) {
+                current = (current + deposit) * (1 + periodRate);
+                if ((freq === 365 && i % 5 === 0) || freq < 365) {
+                    labels.push(i + ". Periyot");
+                    data.push(current.toFixed(0));
+                }
+            }
+            document.getElementById('s1_total').innerText = new Intl.NumberFormat('tr-TR').format(current.toFixed(0)) + " TL";
+            renderChart('chart1', labels, data, '#3b82f6', chart1, (c) => chart1 = c);
+        }
+
+        function updateS2() {
+            const capital = parseFloat(document.getElementById('s2_capital').value) || 0;
+            const percent = (parseFloat(document.getElementById('s2_percent').value) || 0) / 100;
+            const count = parseInt(document.getElementById('s2_count').value) || 0;
+            
+            let current = capital, labels = ["Başlangıç"], data = [capital];
+
+            for (let i = 1; i <= count; i++) {
+                current = current * (1 + percent);
+                labels.push(i + ". İşlem");
+                data.push(current.toFixed(0));
+            }
+            document.getElementById('s2_total').innerText = new Intl.NumberFormat('tr-TR').format(current.toFixed(0)) + " TL";
+            renderChart('chart2', labels, data, '#22c55e', chart2, (c) => chart2 = c);
+        }
+
+        function renderChart(canvasId, labels, data, color, chartInstance, setChartInstance) {
+            if (chartInstance) chartInstance.destroy();
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const newChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Bakiye (TL)',
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: color + '33',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: data.length > 50 ? 0 : 3
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { display: data.length < 60 }, grid: { display: false } },
+                        y: { grid: { color: '#374151' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+            setChartInstance(newChart);
+        }
+
+        document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', () => { updateS1(); updateS2(); }));
+        updateS1(); updateS2();
+    </script>
+</body>
+</html>
